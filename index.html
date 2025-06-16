@@ -1,0 +1,150 @@
+<!-- 2025 Araujo Design Enterprise planning georeferencing system -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise planning georeferencing system</title>
+
+  <link rel="stylesheet" href="leaflet/leaflet.css" />
+  <link rel="stylesheet" href="lrm/leaflet-routing-machine.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <script src="leaflet/leaflet.js"></script>
+  <script src="lrm/leaflet-routing-machine.js"></script>
+  <script src="lrm/lrm-graphhopper-1.2.0.js"></script>   
+  <script src="js/funcionarios.js"></script>
+  
+  <style>
+    #map { width: 100%; height: 50vh; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+  </style>
+  
+</head>
+<body>
+  <div class="container my-4">
+    <div class="mb-3">
+      <label for="obra" class="form-label">Nome da Obra e Coordenadas (lat,lng):</label>
+      <input type="text" class="form-control" id="obra" placeholder="Obra X;-23.55,-46.63">
+    </div>
+    <button class="btn btn-primary mb-3" onclick="calcularRotas()">Calcular Rotas</button>
+
+    <div id="map" class="mb-4"></div>
+
+    <div class="mb-3">
+      <label for="filtro" class="form-label">Filtrar por distância máxima (km):</label>
+      <input type="number" class="form-control" id="filtro" placeholder="Ex: 200" oninput="filtrarTabela()">
+    </div>
+
+    <table id="tabelaDistancias" class="table table-striped">
+      <thead class="table-dark">
+        <tr><th>Nome</th><th>Distância (Km)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const lrm_apiKey = "f7bf2f45-2b19-48e6-b6c3-e526f19ccefc";
+  
+	function GetLinkGraphhopper(LatO,LonO,LatD,LonD) {
+		var Link = "https://graphhopper.com/maps/?point=" + LatO +"%2C" + LonO + "&point=" + LatD + "%2C" + LonD + "&locale=pt-BR&vehicle=car&weighting=fastest&elevation=true&use_miles=false&layer=OpenStreetMap";
+		return Link;
+	}
+
+	function HrefFromURLPlus(Link,Classe,Titulo,Conteudo,Alvo) {
+		var TagAlvo = "";
+		if ( Alvo ) {
+			TagAlvo = " target='"+ Alvo +"' ";
+		}
+		FullLink = "<a href='" + Link + "' class='" + Classe + "' title='"+ Titulo + "' " + TagAlvo + " >"+ Conteudo +"</a>";
+		return FullLink;
+	}    
+
+    const map = L.map('map').setView([-23.5, -51.5], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
+    const routingControls = [];
+
+    let todasDistancias = [];
+
+    function calcularRotas() {
+      const obraInput = document.getElementById("obra").value.trim();
+      if (!obraInput.includes(";")) return alert("Digite no formato: Nome;-23.55,-46.63");
+      const [nomeObra, coordenadas] = obraInput.split(";");
+      const [lat, lng] = coordenadas.split(",").map(Number);
+
+      routingControls.forEach(ctrl => map.removeControl(ctrl));
+      routingControls.length = 0;
+      document.querySelector("#tabelaDistancias tbody").innerHTML = "";
+
+      const destino = L.latLng(lat, lng);
+      const distancias = [];
+      const markerObra = L.marker(destino, { icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png', iconSize: [32, 32], iconAnchor: [16, 32] }) }).addTo(map).bindPopup(`<b>${nomeObra}</b>`);
+
+      funcionarios.forEach(func => {
+        const origem = L.latLng(func.coords[0], func.coords[1]);
+        const marker = L.marker(origem).bindPopup(`<b>${func.nome}</b>`).addTo(map);
+        
+          const layer = L.layerGroup([marker]).addTo(map);
+          layerControl.addOverlay(layer, func.nome);        
+
+        const control = L.Routing.control({
+          waypoints: [origem, destino],
+          routeWhileDragging: false,
+          addWaypoints: false,
+          createMarker: () => null,
+          router: L.Routing.graphHopper(lrm_apiKey),          
+          show: false                   
+        }).addTo(map);
+
+
+        routingControls.push(control);
+
+        control.on('routesfound', function(e) {            
+          const route = e.routes[0];
+          const distanciaKm = (route.summary.totalDistance / 1000).toFixed(2);
+          const protoNome = func.nome;
+ 			 const Src = e.waypoints[0].latLng;        
+			 const LatS = Src.lat; 
+			 const LonS = Src.lng; 
+ 			 const Dst = e.waypoints[1].latLng;        
+			 const LatD = Dst.lat; 
+			 const LonD = Dst.lng; 
+
+          const PreLink = GetLinkGraphhopper(LatD,LonD,LatS,LonS);
+			 const Link = HrefFromURLPlus(PreLink,"fas fa-external-link-square-alt","Detalhe da rota",protoNome,"_blank"); 	
+	    
+          distancias.push({ nome: Link, distancia: parseFloat(distanciaKm) });
+
+          if (distancias.length === funcionarios.length) {
+            todasDistancias = distancias.slice();
+            preencherTabela(distancias);
+          }
+        });
+      });
+    }
+
+    function preencherTabela(distancias) {
+      const tbody = document.querySelector("#tabelaDistancias tbody");
+      distancias.sort((a, b) => a.distancia - b.distancia);
+      tbody.innerHTML = distancias.map(d => `<tr><td>${d.nome}</td><td>${d.distancia} km</td></tr>`).join("");
+    }
+
+    function filtrarTabela() {
+      const filtro = parseFloat(document.getElementById("filtro").value);
+      if (isNaN(filtro)) {
+        preencherTabela(todasDistancias);
+      } else {
+        const filtradas = todasDistancias.filter(d => d.distancia <= filtro);
+        preencherTabela(filtradas);
+      }
+    }
+  </script>
+</body>
+</html>
