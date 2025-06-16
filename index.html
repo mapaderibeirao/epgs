@@ -5,15 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Enterprise planning georeferencing system</title>
-
-  <link rel="stylesheet" href="leaflet/leaflet.css" />
-  <link rel="stylesheet" href="lrm/leaflet-routing-machine.css" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  
-  <script src="leaflet/leaflet.js"></script>
-  <script src="lrm/leaflet-routing-machine.js"></script>
-  <script src="lrm/lrm-graphhopper-1.2.0.js"></script>   
-  <script src="js/funcionarios.js"></script>
   
   <style>
     #map { width: 100%; height: 50vh; }
@@ -21,12 +12,30 @@
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     th { background-color: #f2f2f2; }
   </style>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css"  integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous"> 
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js" integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO" crossorigin="anonymous"></script>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/> 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <link rel="stylesheet" href="lrm/leaflet-routing-machine.css" />
+  <script src="lrm/leaflet-routing-machine.js"></script>
+
+  <script src="lrm/lrm-graphhopper-1.2.0.js"></script>   
+  <script src="js/config.js"></script>
+  <script src="js/funcoes.js"></script>
+  <script src="js/funcionarios.js"></script>
+  
   
 </head>
 <body>
   <div class="container my-4">
     <div class="mb-3">
-      <label for="obra" class="form-label">Nome da Obra e Coordenadas (lat,lng):</label>
+      <label for="obra" class="form-label">Nome da Obra e Coordenadas (lat,lng): <a href="https://mapaderibeirao.github.io/mapa/" target="_blank"> <i class="bi bi-crosshair2"></i> Obter coordenadas</a>
+		
+	  </label>
       <input type="text" class="form-control" id="obra" placeholder="Obra X;-23.55,-46.63">
     </div>
     <button class="btn btn-primary mb-3" onclick="calcularRotas()">Calcular Rotas</button>
@@ -46,29 +55,13 @@
     </table>
   </div>
 
-  <script>
-    const lrm_apiKey = "f7bf2f45-2b19-48e6-b6c3-e526f19ccefc";
-  
-	function GetLinkGraphhopper(LatO,LonO,LatD,LonD) {
-		var Link = "https://graphhopper.com/maps/?point=" + LatO +"%2C" + LonO + "&point=" + LatD + "%2C" + LonD + "&locale=pt-BR&vehicle=car&weighting=fastest&elevation=true&use_miles=false&layer=OpenStreetMap";
-		return Link;
-	}
-
-	function HrefFromURLPlus(Link,Classe,Titulo,Conteudo,Alvo) {
-		var TagAlvo = "";
-		if ( Alvo ) {
-			TagAlvo = " target='"+ Alvo +"' ";
-		}
-		FullLink = "<a href='" + Link + "' class='" + Classe + "' title='"+ Titulo + "' " + TagAlvo + " >"+ Conteudo +"</a>";
-		return FullLink;
-	}    
-
+  <script> 
     const map = L.map('map').setView([-23.5, -51.5], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
+  //  const layerControl = L.control.layers(null, null, { collapsed: true }).addTo(map);
     const routingControls = [];
 
     let todasDistancias = [];
@@ -92,7 +85,7 @@
         const marker = L.marker(origem).bindPopup(`<b>${func.nome}</b>`).addTo(map);
         
           const layer = L.layerGroup([marker]).addTo(map);
-          layerControl.addOverlay(layer, func.nome);        
+        //  layerControl.addOverlay(layer, func.nome);        
 
         const control = L.Routing.control({
           waypoints: [origem, destino],
@@ -118,7 +111,7 @@
 			 const LonD = Dst.lng; 
 
           const PreLink = GetLinkGraphhopper(LatD,LonD,LatS,LonS);
-			 const Link = HrefFromURLPlus(PreLink,"fas fa-external-link-square-alt","Detalhe da rota",protoNome,"_blank"); 	
+			 const Link = HrefFromURLPlus(PreLink,"btn btn-primary mb-3","Detalhe da rota",protoNome,"_blank","bi-sign-turn-slight-right-fill"); 	
 	    
           distancias.push({ nome: Link, distancia: parseFloat(distanciaKm) });
 
